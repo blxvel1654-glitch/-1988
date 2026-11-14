@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>オートレースAI試走分析</title>
+<style>
+:root{--bg:#0b1220;--panel:#131f33;--panel2:#1a2941;--line:#2a3b56;--txt:#eef4ff;--muted:#a8b7cc;--blue:#62a6ff;--green:#36c98a;--red:#ff7272;--yellow:#ffc857}
+*{box-sizing:border-box}body{margin:0;background:linear-gradient(145deg,#08101d,#101d31);color:var(--txt);font:15px system-ui,-apple-system,"Noto Sans JP",sans-serif}
+header{padding:22px 18px 14px;max-width:1100px;margin:auto}h1{font-size:24px;margin:0 0 6px}p{color:var(--muted);line-height:1.65;margin:6px 0}
+main{max-width:1100px;margin:auto;padding:0 18px 36px}.tabs{display:flex;gap:8px;overflow:auto;margin:12px 0 18px}.tab{border:1px solid var(--line);background:var(--panel);color:var(--muted);padding:10px 14px;border-radius:10px;white-space:nowrap;cursor:pointer}.tab.active{background:#1d3b61;color:white;border-color:#4e8ed5}
+section{display:none}section.active{display:block}.card{background:rgba(19,31,51,.96);border:1px solid var(--line);border-radius:16px;padding:16px;margin:12px 0;box-shadow:0 10px 30px #0002}
+h2{font-size:18px;margin:0 0 12px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}.field{display:flex;flex-direction:column;gap:6px}.field label{font-size:13px;color:var(--muted)}input,select,textarea{width:100%;border:1px solid var(--line);background:#0c1728;color:var(--txt);border-radius:9px;padding:10px;font:inherit}input[type=file]{padding:12px}input[type=range]{padding:0;accent-color:var(--blue)}button{border:0;background:#2867aa;color:white;padding:11px 15px;border-radius:10px;font-weight:700;cursor:pointer}button.secondary{background:#263a56}button.danger{background:#743b46}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.videoWrap{background:#050a12;border:1px dashed #48617e;border-radius:12px;min-height:180px;display:grid;place-items:center;overflow:hidden}.videoWrap video{width:100%;max-height:420px}.hint{font-size:12px;color:var(--muted)}.notice{border-left:3px solid var(--yellow);padding:10px 12px;background:#392f1b55;color:#ffe4a6;border-radius:7px;font-size:13px;line-height:1.6}
+.racer{border:1px solid var(--line);border-radius:12px;padding:13px;margin:10px 0;background:#0f1a2c}.racerHead{display:flex;justify-content:space-between;gap:10px;align-items:center}.score{font-size:23px;font-weight:800}.good{color:var(--green)}.bad{color:var(--red)}.mid{color:var(--yellow)}.bar{height:8px;background:#26364e;border-radius:20px;overflow:hidden;margin:8px 0}.bar span{display:block;height:100%;background:linear-gradient(90deg,#ff7272,#ffc857,#36c98a)}
+table{width:100%;border-collapse:collapse;font-size:13px}td,th{padding:9px 7px;border-bottom:1px solid var(--line);text-align:left}th{color:var(--muted);font-weight:600}.pill{display:inline-block;padding:4px 8px;border-radius:20px;font-size:12px;background:#233954}.small{font-size:12px;color:var(--muted)}a{color:#8fc2ff}
+@media(max-width:600px){h1{font-size:20px}.card{padding:13px}td,th{padding:7px 4px;font-size:12px}}
+</style>
+</head>
+<body>
+<header><h1>🏁 オートレースAI試走分析</h1><p>試走動画・公式データ・選手別評価をまとめる分析ツール</p></header>
+<main>
+<div class="tabs">
+<button class="tab active" data-tab="video">① 動画分析</button>
+<button class="tab" data-tab="data">② 公式データ</button>
+<button class="tab" data-tab="result">③ 選手評価・買い目</button>
+<button class="tab" data-tab="log">④ 成績記録</button>
+</div>
+<section id="video" class="active">
+<div class="card">
+<h2>試走動画をアップロード</h2>
+<p>スマホで撮影した動画を選択してください。動画はこの端末内で再生します。</p>
+<input id="videoFile" type="file" accept="video/*">
+<div class="videoWrap" id="videoWrap"><span class="hint">動画を選ぶとここに表示されます</span></div>
+<div class="actions"><button class="secondary" id="capture">現在のフレームを保存</button><button class="secondary" id="clearVideo">動画を解除</button></div>
+<div id="frames" class="grid"></div>
+<p class="notice">映像からの試走タイム予想は、動画を確認して予想タイム欄に入力する方式です。現段階では車番追跡・タイム自動計測・公式データ自動取得は未接続です。公式の実試走タイムと対戦成績を入力すると、予想との差・選手別評価に反映します。完全自動化には動画解析AIと公式データ連携のサーバー/APIが必要です。</p>
+</div>
+<div class="card">
+<h2>動画から確認する観察項目</h2>
+<p>選手ごとに動画を確認し、該当する評価を入力します。</p>
+<div class="grid">
+<div class="field"><label>走行ラインの安定（0〜10）</label><input type="number" id="lineScore" min="0" max="10" value="5"></div>
+<div class="field"><label>コーナーのスムーズさ（0〜10）</label><input type="number" id="cornerScore" min="0" max="10" value="5"></div>
+<div class="field"><label>立ち上がり・加速感（0〜10）</label><input type="number" id="accelScore" min="0" max="10" value="5"></div>
+<div class="field"><label>車体の安定・挙動（0〜10）</label><input type="number" id="stabilityScore" min="0" max="10" value="5"></div>
+</div>
+<p class="hint">選択中の選手に反映します。観察できない項目は5点（中立）のままにしてください。映像から予想したタイムは「②公式データ」の選手欄に入力してください。</p>
+<div class="field"><label>評価対象の車番</label><select id="targetRacer"></select></div>
+<button id="applyVideo" style="margin-top:10px">動画観察評価を選手に反映</button>
+</div>
+</section>
+<section id="data">
+<div class="card">
+<h2>レース情報</h2>
+<div class="grid">
+<div class="field"><label>開催場</label><select id="venue"><option>山陽</option><option>飯塚</option><option>川口</option><option>伊勢崎</option><option>浜松</option></select></div>
+<div class="field"><label>開催日</label><input type="date" id="raceDate"></div>
+<div class="field"><label>レース番号</label><select id="raceNo"><option>1R</option><option>2R</option><option>3R</option><option>4R</option><option>5R</option><option>6R</option><option>7R</option><option>8R</option><option>9R</option><option>10R</option><option>11R</option><option>12R</option></select></div>
+<div class="field"><label>走路状況</label><select id="track"><option>良</option><option>湿</option><option>斑</option></select></div>
+<div class="field"><label>天候</label><select id="weather"><option>晴</option><option>曇</option><option>雨</option></select></div>
+<div class="field"><label>走路温度（℃）</label><input type="number" id="trackTemp" placeholder="例：32"></div>
+</div>
+<p class="small">公式出走表・公式リプレイ等を別タブで確認し、実試走タイムと選手ごとの対戦成績を入力してください。対戦成績は「今回出走するメンバーとの過去対戦での勝数／対戦数」です。</p>
+<div class="actions"><a href="https://autorace.jp/race_info/Live/" target="_blank" rel="noopener">AUTORACE.JP 本日のLIVE・出走表 ↗</a>　<a href="https://autorace.jp/" target="_blank" rel="noopener">公式サイト ↗</a></div>
+</div>
+<div class="card">
+<div class="racerHead"><h2>選手データ（最大8名）</h2><button id="addRacer">＋ 選手追加</button></div>
+<p class="hint">映像予想タイム・公式の実試走タイム・偏差・ハンデ・平均ST・2連対率・近10走1着数・今回の出走メンバーとの過去対戦成績を入力。</p>
+<div id="racers"></div>
+<div class="actions"><button id="calc">評価を計算する</button><button class="secondary" id="sample">サンプルデータを入れる</button></div>
+</div>
+</section>
+<section id="result">
+<div class="card"><h2>選手別総合評価</h2><p class="small">映像観察・映像予想タイム・公式試走タイム・入力した公式成績を組み合わせた暫定スコアです。</p><div id="rankings"><p class="hint">公式データを入力して「評価を計算する」を押してください。</p></div></div>
+<div class="card"><h2>買い目検討（予算上限 3,000円）</h2>
+<div class="grid">
+<div class="field"><label>1レース予算（円）</label><input type="number" id="budget" value="1000" min="100" step="100"></div>
+<div class="field"><label>券種</label><select id="betType"><option>2連単</option><option>2連複</option><option>3連複</option><option>3連単</option></select></div>
+</div><button id="makeBets" style="margin-top:10px">買い目候補を作成</button><div id="bets"></div>
+<p class="notice">買い目は評価順位から作る候補です。オッズ・実際の的中確率を取得していないため、期待値がプラスとは限りません。購入前に必ず公式オッズを確認してください。</p>
+</div>
+</section>
+<section id="log">
+<div class="card"><h2>予想・結果の記録</h2>
+<div class="grid"><div class="field"><label>実際の1着車番</label><input type="number" id="actual1" min="1" max="8"></div><div class="field"><label>実際の2着車番</label><input type="number" id="actual2" min="1" max="8"></div><div class="field"><label>実際の3着車番</label><input type="number" id="actual3" min="1" max="8"></div><div class="field"><label>購入額（円）</label><input type="number" id="spent" value="0"></div><div class="field"><label>払戻額（円）</label><input type="number" id="payout" value="0"></div></div>
+<button id="saveResult" style="margin-top:10px">結果を記録</button><div id="history"></div><div class="actions"><button class="secondary" id="export">CSVを書き出す</button><button class="danger" id="reset">記録をリセット</button></div>
+</div>
+</section>
+<p class="small">※このアプリは試作版です。入力データはこのブラウザ内で処理し、外部送信しません。公式サイトのデータを自動取得する機能・動画のAI自動認識・投票機能は未実装です。</p>
+</main>
+<script>
+const $=id=>document.getElementById(id);let racers=[],history=[];
+function switchTab(id){document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===id));document.querySelectorAll('section').forEach(s=>s.classList.toggle('active',s.id===id))}
+document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>switchTab(b.dataset.tab));
+function addRacer(data={}){if(racers.length>=8)return alert('選手は最大8名です');let id=Date.now()+Math.random();racers.push({id,number:data.number||racers.length+1,name:data.name||'',trial:data.trial??'',videoPred:data.videoPred??'',deviation:data.deviation??'',handicap:data.handicap??0,st:data.st??'',rate:data.rate??'',wins:data.wins??'',h2hWins:data.h2hWins??'',h2hTotal:data.h2hTotal??'',line:5,corner:5,accel:5,stability:5});renderRacers()}
+function renderRacers(){ $('racers').innerHTML=racers.map((r,i)=>`<div class="racer" data-id="${r.id}"><div class="racerHead"><b>車番 ${i+1}</b><button class="danger remove" data-id="${r.id}">削除</button></div><div class="grid">
+${field('車番','number','number',r.number)}${field('選手名','name','text',r.name)}${field('映像から予想した試走タイム','videoPred','number',r.videoPred,'step="0.01" placeholder="例 3.42')}${field('実際の試走タイム（公式）','trial','number',r.trial,'step="0.01" placeholder="例 3.40')}${field('試走偏差','deviation','number',r.deviation,'step="0.001"')}${field('ハンデ(m)','handicap','number',r.handicap)}${field('平均ST','st','number',r.st,'step="0.01"')}${field('2連対率(%)','rate','number',r.rate)}${field('近10走1着数','wins','number',r.wins)}${field('今回メンバーとの過去対戦勝数','h2hWins','number',r.h2hWins)}${field('今回メンバーとの過去対戦数','h2hTotal','number',r.h2hTotal)}</div><div class="grid" style="margin-top:9px">${[['line','ライン安定'],['corner','コーナー'],['accel','立ち上がり'],['stability','車体安定']].map(([k,l])=>`<div class="field"><label>${l}（0〜10）</label><input data-k="${k}" data-id="${r.id}" type="number" min="0" max="10" value="${r[k]}"></div>`).join('')}</div></div>`).join('');
+document.querySelectorAll('#racers input').forEach(el=>el.onchange=()=>{let r=racers.find(x=>x.id==el.dataset.id);if(r)r[el.dataset.k||el.dataset.field]=el.type==='text'?el.value:Number(el.value)});
+document.querySelectorAll('.remove').forEach(b=>b.onclick=()=>{racers=racers.filter(r=>r.id!=b.dataset.id);renderRacers();updateTargets()});updateTargets()}
+function field(label,key,type,val,extra=''){return `<div class="field"><label>${label}</label><input data-field="${key}" type="${type}" value="${val}" ${extra}></div>`}
+function updateTargets(){$('targetRacer').innerHTML=racers.map((r,i)=>`<option value="${r.id}">${r.number}番 ${r.name}</option>`).join('')}
+$('addRacer').onclick=()=>addRacer();addRacer();addRacer();
+$('videoFile').onchange=e=>{let f=e.target.files[0];if(!f)return;let url=URL.createObjectURL(f);$('videoWrap').innerHTML='<video id="player" controls playsinline></video>';$('player').src=url};
+$('clearVideo').onclick=()=>{$('videoFile').value='';$('videoWrap').innerHTML='<span class="hint">動画を選ぶとここに表示されます</span>';$('frames').innerHTML=''};
+$('capture').onclick=()=>{let v=$('player');if(!v)return alert('先に動画を選んでください');let c=document.createElement('canvas');c.width=v.videoWidth;c.height=v.videoHeight;c.getContext('2d').drawImage(v,0,0);let img=document.createElement('img');img.src=c.toDataURL('image/jpeg',.8);img.style.width='100%';img.style.borderRadius='8px';let d=document.createElement('div');d.append(img);d.className='card';$('frames').append(d)};
+$('applyVideo').onclick=()=>{let r=racers.find(x=>x.id==$('targetRacer').value);if(!r)return alert('先に選手を追加してください');r.line=+$('lineScore').value;r.corner=+$('cornerScore').value;r.accel=+$('accelScore').value;r.stability=+$('stabilityScore').value;renderRacers();alert('動画観察評価を反映しました')};
+$('racers').addEventListener('change',e=>{let el=e.target;if(!el.dataset.field)return;let r=el.closest('.racer'),obj=racers.find(x=>x.id==r.dataset.id);if(obj)obj[el.dataset.field]=el.type==='text'?el.value:Number(el.value)});
+$('sample').onclick=()=>{racers=[];[[1,'選手A',3.38,.015,0,.12,72,4],[2,'選手B',3.41,.025,10,.16,55,2],[3,'選手C',3.36,.020,20,.14,60,3],[4,'選手D',3.44,.030,0,.18,40,1]].forEach(x=>addRacer({number:x[0],name:x[1],trial:x[2],deviation:x[3],handicap:x[4],st:x[5],rate:x[6],wins:x[7]}));calc()};
+function score(){let valid=racers.filter(r=>r.trial!==''&&Number.isFinite(+r.trial));if(!valid.length)return [];let minT=Math.min(...valid.map(r=>+r.trial)),maxT=Math.max(...valid.map(r=>+r.trial)),maxH=Math.max(1,...valid.map(r=>+r.handicap||0));return racers.map(r=>{let trial=r.trial===''?50: maxT===minT?20:20*(maxT-(+r.trial))/(maxT-minT);let dev=r.deviation===''?10:15/(1+Math.max(0,+r.deviation)*100);let handicap=15*(1-(+r.handicap||0)/(maxH+10));let st=r.st===''?7:10/(1+Math.max(0,+r.st)*3);let rate=r.rate===''?7:10*Math.min(100,+r.rate)/100;let wins=r.wins===''?5:10*Math.min(10,+r.wins)/10;let h2h=r.h2hWins===''||r.h2hTotal===''||+r.h2hTotal<=0?5:10*Math.max(0,Math.min(1,+r.h2hWins/+r.h2hTotal));let video=(+r.line + +r.corner + +r.accel + +r.stability)/4;let total=trial+dev+handicap+st+rate+wins+h2h+video;return {...r,total:Math.round(total*10)/10,video:Math.round(video*10)/10}}).sort((a,b)=>b.total-a.total)}
+function calc(){let a=score();if(!a.length){$('rankings').innerHTML='<p>試走タイムを入力してください。</p>';return} $('rankings').innerHTML=a.map((r,i)=>`<div class="racer"><div class="racerHead"><div><b>${i+1}位　${r.number}番 ${r.name||'選手名未入力'}</b><div class="small">試走 ${r.trial||'—'} / 偏差 ${r.deviation||'—'} / ハンデ ${r.handicap}m</div></div><div class="score ${i===0?'good':i===a.length-1?'bad':'mid'}">${r.total}点</div></div><div class="bar"><span style="width:${Math.min(100,r.total)}%"></span></div><div class="small">映像予想 ${r.videoPred||'—'}　｜ 公式試走 ${r.trial||'—'}　｜ タイム差 ${r.videoPred!==''&&r.trial!==''?(Number(r.videoPred)-Number(r.trial)).toFixed(2)+'秒':'—'}　｜ 動画観察 ${r.video}/10</div><div class="small">平均ST ${r.st||'—'}　｜ 2連対率 ${r.rate||'—'}%　｜ 過去対戦 ${r.h2hWins!==''&&r.h2hTotal!==''?r.h2hWins+'/'+r.h2hTotal+'勝（'+(r.h2hTotal?Math.round(100*r.h2hWins/r.h2hTotal):0)+'%）':'未入力'}</div><p>${i===0?'評価上位。試走タイムと走行観察を中心に確認。':i===a.length-1?'評価下位。数値・動画の両面で慎重に判断。':'中位評価。ハンデと展開、オッズを追加確認。'}</p></div>`).join('');switchTab('result');}
+$('calc').onclick=calc;
+$('makeBets').onclick=()=>{let a=score();if(a.length<2)return alert('2名以上の選手データを入力してください');let b=Number($('budget').value),type=$('betType').value,top=a.slice(0,4);let lines=[];if(type==='2連単')lines=[`${top[0].number} → ${top[1].number}`,`${top[0].number} → ${top[2]?.number||top[1].number}`];if(type==='2連複')lines=[`${top[0].number} - ${top[1].number}`,`${top[0].number} - ${top[2]?.number||top[1].number}`];if(type==='3連複')lines=[`${top[0].number} - ${top[1].number} - ${top[2]?.number||top[1].number}`];if(type==='3連単')lines=[`${top[0].number} → ${top[1].number} → ${top[2]?.number||top[1].number}`,`${top[0].number} → ${top[2]?.number||top[1].number} → ${top[1].number}`];$('bets').innerHTML=`<h3>${type} 候補</h3><ul>${lines.map(x=>`<li>${x}</li>`).join('')}</ul><p>予算目安：${b.toLocaleString()}円（購入前にオッズと公式情報を確認）</p><p class="small">これはスコア順の機械的な候補で、的中保証・期待値判定ではありません。</p>`};
+$('saveResult').onclick=()=>{history.push({date:$('raceDate').value,venue:$('venue').value,race:$('raceNo').value,first:$('actual1').value,second:$('actual2').value,third:$('actual3').value,spent:$('spent').value,payout:$('payout').value});renderHistory()};
+function renderHistory(){$('history').innerHTML=history.length?`<table><tr><th>日付/場/レース</th><th>着順</th><th>購入</th><th>払戻</th><th>収支</th></tr>${history.map(x=>`<tr><td>${x.date} ${x.venue} ${x.race}</td><td>${x.first}-${x.second}-${x.third}</td><td>${(+x.spent).toLocaleString()}</td><td>${(+x.payout).toLocaleString()}</td><td>${(+x.payout-+x.spent).toLocaleString()}</td></tr>`).join('')}</table>`:'<p class="hint">記録はまだありません。</p>'}
+$('export').onclick=()=>{let rows=[['date','venue','race','1st','2nd','3rd','spent','payout'],...history.map(x=>Object.values(x))];let csv='\ufeff'+rows.map(r=>r.join(',')).join('\n');let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='autorace_history.csv';a.click()};
+$('reset').onclick=()=>{if(confirm('すべての記録を削除しますか？')){history=[];renderHistory()}};
+$('raceDate').value=new Date().toISOString().slice(0,10);
+</script>
+</body></html>
