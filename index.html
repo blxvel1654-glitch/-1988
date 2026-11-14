@@ -8,7 +8,7 @@
 </style>
 </head>
 <body>
-<header><h1>オートレースAI分析｜無料版</h1><p>ブラウザ内AIによる人物・二輪車候補検出／公式試走映像向け分割解析</p></header>
+<header><h1>オートレースAI分析｜無料統合版</h1><p>動画・カメラ解析／二輪車候補追跡／複数選手比較／タイム校正計算</p></header>
 <main class="wrap">
 <section class="card"><div class="warning">無料の汎用物体検出モデルを、公式試走映像で小さく映る車体を拾いやすいよう画面分割・拡大して解析する版です。オートレース専用に学習したモデルではないため、車番・選手名・試走タイムを確実に認識するものではありません。モデル読込にはインターネット接続が必要です。</div>
 <div class="tabs" style="margin-top:12px"><button class="tab active" id="uploadTab">動画アップロード</button><button class="tab" id="cameraTab">リアルタイムカメラ</button></div>
@@ -20,12 +20,50 @@
 </section>
 <section class="card"><h2 style="font-size:17px;margin-top:0">AI検出結果</h2><div class="grid"><div class="metric"><b id="detCount">0</b><span>検出した対象数</span></div><div class="metric"><b id="personCount">0</b><span>人物候補</span></div><div class="metric"><b id="bikeCount">0</b><span>バイク候補</span></div></div><div id="detections" class="status">解析結果はここに表示されます。</div></section>
 <section class="card"><h2 style="font-size:17px;margin-top:0">試走タイム・公式データ入力</h2><p class="muted">この項目は現段階では手入力です。映像からの自動タイム計測や公式サイトからの自動取得は未実装です。</p><div class="grid"><div><label>映像からの予想タイム（秒）</label><input id="predTime" type="number" step="0.01" placeholder="例：3.42"></div><div><label>公式試走タイム（秒）</label><input id="officialTime" type="number" step="0.01" placeholder="例：3.38"></div><div><label>選手名・車番</label><input id="rider" placeholder="例：1号車"></div><div><label>過去対戦勝数</label><input id="wins" type="number" min="0" placeholder="手入力"></div><div><label>過去対戦数</label><input id="total" type="number" min="0" placeholder="手入力"></div></div><div class="actions"><button class="primary" id="compare">タイム誤差を計算</button></div><div id="comparison" class="status">入力後に誤差を計算できます。</div></section>
-<section class="card"><h2 style="font-size:17px;margin-top:0">この無料版でできること／未対応のこと</h2><ul><li>動画ファイルの読み込みと再生</li><li>スマホカメラ映像の取得（HTTPS環境が必要）</li><li>画面全体＋2×2／3×3分割拡大による人物・二輪車候補検出</li><li>検出枠を映像上に重ねて表示し、重複検出を統合</li><li>動画の自動フレーム解析（約1.8秒間隔）</li><li>試走タイムの手入力・公式タイムとの差の計算</li></ul><p class="small">未対応：車番・選手名の確実な識別、走行ラインの定量評価、試走タイムの自動計測、公式成績の自動取得、信頼できる着順確率・買い目予測。遠景・低画質・テロップ・重なり・高速移動では見落としや誤検出があります。実際の公式試走映像での検証が必要です。</p></section>
+
+<section class="card"><h2 style="font-size:17px;margin-top:0">走行ライン・コーナー・加速の映像分析</h2>
+<p class="muted">検出した二輪車候補の画面内位置を時系列で記録し、移動方向・画面上の移動量・方向変化を簡易表示します。画面上の移動量は実速度ではありません。コース上の基準点やカメラ校正なしに実際の速度・加速度・走行ラインの良否を断定できません。</p>
+<div class="grid"><div class="metric"><b id="motionSamples">0</b><span>位置サンプル数</span></div><div class="metric"><b id="motionDisplacement">—</b><span>画面上の移動量(px)</span></div><div class="metric"><b id="motionTurn">—</b><span>方向変化の目安</span></div></div>
+<div id="motionSummary" class="status">動画を再生して自動解析を行うと、検出位置の変化を記録します。</div>
+<div class="actions"><button id="clearMotion">動きの記録をリセット</button></div></section>
+<section class="card"><h2 style="font-size:17px;margin-top:0">試走タイム予測と公式タイム比較</h2>
+<p class="muted">予測タイム・公式タイムを入力して誤差を比較します。現状の無料汎用検出モデルは映像だけから正確な周回タイムを計測・予測できません。計測区間やコース距離の校正が必要です。</p>
+<div class="grid"><div><label>AI予測タイム（秒）</label><input id="predTime2" type="number" step="0.01" placeholder="予測値を入力"></div><div><label>公式試走タイム（秒）</label><input id="officialTime2" type="number" step="0.01" placeholder="公式値を入力"></div><div><label>選手名・車番</label><input id="rider2" placeholder="例：1号車"></div></div>
+<div class="actions"><button class="primary" id="compare2">予測と公式タイムを比較</button></div><div id="comparison2" class="status">予測値と公式値を入力してください。</div></section>
+<section class="card"><h2 style="font-size:17px;margin-top:0">過去成績・今回メンバーとの対戦成績</h2>
+<p class="muted">公式発表値を入力して照合・評価に使います。この版では公式サイトからの自動取得は未接続です。</p>
+<div class="grid"><div><label>選手名・車番</label><input id="histRider" placeholder="例：1号車"></div><div><label>直近着順平均</label><input id="avgPlace" type="number" min="1" max="8" step="0.1" placeholder="例：2.8"></div><div><label>近況1着回数</label><input id="recentWins" type="number" min="0" placeholder="例：4"></div><div><label>近況出走数</label><input id="recentStarts" type="number" min="0" placeholder="例：10"></div><div><label>今回メンバーとの対戦勝数</label><input id="headWins" type="number" min="0" placeholder="例：6"></div><div><label>今回メンバーとの対戦数</label><input id="headTotal" type="number" min="0" placeholder="例：12"></div><div><label>ハンデ（m）</label><input id="handicap" type="number" min="0" step="10" placeholder="例：10"></div><div><label>公式試走タイム（秒）</label><input id="officialTrial" type="number" min="0" step="0.01" placeholder="例：3.38"></div></div>
+<div class="actions"><button class="primary" id="saveRider">選手データを評価に反映</button></div><div id="historyResult" class="status">入力した公式成績を保存せず、このページ内で評価に利用します。</div></section>
+<section class="card"><h2 style="font-size:17px;margin-top:0">AI選手評価・買い目候補</h2>
+<p class="muted">入力データを点数化する簡易評価です。学習済みオートレース予測AIや実測勝率ではありません。オッズ・展開・天候など未入力要素を含まず、的中や利益を保証しません。</p>
+<div class="grid"><div class="metric"><b id="riderScore">—</b><span>入力データ評価点（100点満点）</span></div><div class="metric"><b id="winRate">—</b><span>入力データ上の近況1着率</span></div><div class="metric"><b id="headRate">—</b><span>入力データ上の対戦勝率</span></div></div>
+<div class="actions"><button class="primary" id="makePicks">買い目候補を作成</button></div><div id="pickResult" class="status">先に選手データを入力して評価してください。</div>
+<label>1日の予算（円）</label><input id="budget" type="number" min="0" step="100" value="3000"><p class="small">買い目候補は参考情報です。投票前に公式出走表・オッズを確認してください。</p></section>
+
+<section class="card"><h2 style="font-size:17px;margin-top:0">この無料版でできること／未対応のこと</h2><ul><li>動画ファイルの読み込みと再生</li><li>スマホカメラ映像の取得（HTTPS環境が必要）</li><li>画面全体＋2×2／3×3分割拡大による人物・二輪車候補検出</li><li>検出枠を映像上に重ねて表示し、重複検出を統合</li><li>動画の自動フレーム解析（約1.8秒間隔）</li><li>検出位置の時系列記録と画面上の移動・方向変化の簡易分析</li><li>試走タイム予測値と公式タイムの比較（値は入力）</li><li>過去成績・対戦成績の入力と簡易評価</li><li>入力データに基づく選手評価・買い目候補の参考表示</li></ul><p class="small">未対応：車番・選手名の確実な識別、実速度・実加速度の算出、コース基準に基づく走行ライン評価、映像からの正確な試走タイム自動予測、公式成績の自動取得、実績で検証された着順確率。遠景・低画質・テロップ・重なり・高速移動では見落としや誤検出があります。実際の公式試走映像での検証が必要です。</p></section>
+
+<section class="card" id="multiRiderPanel"><h2 style="font-size:17px;margin-top:0">出走全選手データ・AI比較（最大8車）</h2>
+<p class="muted">全選手を同じ基準で比較します。公式出走表・成績を入力またはCSV貼り付けして評価します。公式サイトへの自動接続機能ではありません。</p>
+<div class="grid"><div><label>開催場</label><input id="venue" placeholder="例：川口"></div><div><label>開催日</label><input id="raceDate" type="date"></div><div><label>レース番号</label><input id="raceNo" type="number" min="1" max="12" placeholder="例：10"></div><div><label>買い目予算（円）</label><input id="raceBudget" type="number" min="0" step="100" value="3000"></div></div>
+<label>出走選手データ（1行に1選手／最大8車）</label>
+<p class="small">形式：車番,選手名,ハンデm,試走タイム秒,平均着順,近況1着数,近況出走数,今回メンバーとの対戦勝数,対戦数,単勝オッズ（任意）</p>
+<textarea id="riderCsv" rows="8" style="width:100%;padding:10px;border-radius:9px;background:#0e1726;color:white;border:1px solid var(--line)" placeholder="1,選手A,0,3.38,2.1,5,10,3,8,4.2&#10;2,選手B,10,3.42,3.0,2,10,2,8,7.5"></textarea>
+<div class="actions"><button class="primary" id="evaluateField">全選手を評価・ランキング</button><button id="sampleField">入力例を入れる</button><button id="clearField">消去</button></div>
+<div id="fieldRanking" class="status">出走選手データを入力して評価してください。</div>
+<div class="actions"><button class="primary" id="buildBet">買い目候補・予算配分を作成</button></div><div id="betPlan" class="status">全選手を評価すると買い目候補を作成できます。</div>
+</section>
+<section class="card"><h2 style="font-size:17px;margin-top:0">映像からの走行・タイム計測（校正式）</h2>
+<p class="muted">AI検出位置を追跡し、画面上の移動量・方向変化・推定画面速度を記録します。実距離の計測には、映像内の既知距離でピクセル換算を校正してください。スタート／ゴール線の通過時刻は映像を確認して手動記録します。</p>
+<div class="grid"><div><label>校正区間の実距離（m）</label><input id="calMeters" type="number" min="0.1" step="0.1" placeholder="例：100"></div><div><label>同区間の画面距離（px）</label><input id="calPixels" type="number" min="1" step="1" placeholder="例：420"></div><div><label>計測開始時刻（動画秒）</label><input id="gateStart" type="number" min="0" step="0.01" placeholder="例：12.40"></div><div><label>計測終了時刻（動画秒）</label><input id="gateEnd" type="number" min="0" step="0.01" placeholder="例：15.80"></div></div>
+<div class="actions"><button class="primary" id="calcVideoMetrics">校正・区間タイム計算</button></div><div id="videoMetrics" class="status">校正値と通過時刻を入力すると、画面速度換算と区間タイムを計算します。</div>
+<p class="small">固定カメラ・同一平面・同じ選手を追跡できる映像が前提です。カメラ移動、ズーム、遠近、選手の入れ替わりがある場合、実速度や試走タイムとして扱えません。</p>
+</section>
+
 </main>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js"></script>
 <script>
-const $=id=>document.getElementById(id), video=$('video'),canvas=$('canvas'),ctx=canvas.getContext('2d'),overlay=$('overlay'),octx=overlay.getContext('2d');let model=null,stream=null,scanTimer=null,mode='upload';
+const $=id=>document.getElementById(id), video=$('video'),canvas=$('canvas'),ctx=canvas.getContext('2d'),overlay=$('overlay'),octx=overlay.getContext('2d');let model=null,stream=null,scanTimer=null,mode='upload',motionHistory=[];
 function say(s){$('status').textContent=s}
 function setMode(m){mode=m;$('uploadTab').classList.toggle('active',m==='upload');$('cameraTab').classList.toggle('active',m==='camera');$('uploadPane').classList.toggle('hidden',m!=='upload');$('cameraPane').classList.toggle('hidden',m!=='camera')}
 $('uploadTab').onclick=()=>setMode('upload');$('cameraTab').onclick=()=>setMode('camera');
@@ -50,13 +88,35 @@ for(let row=0;row<divisions;row++)for(let col=0;col<divisions;col++){
 }
 // motorcycle/person only; COCO class name is motorcycle (not race-specific)
 found=found.filter(x=>(x.class==='motorcycle'||x.class==='person')&&x.score>=.18);found=suppressDuplicates(found);
-const people=found.filter(x=>x.class==='person'),bikes=found.filter(x=>x.class==='motorcycle');$('detCount').textContent=found.length;$('personCount').textContent=people.length;$('bikeCount').textContent=bikes.length;
+const people=found.filter(x=>x.class==='person'),bikes=found.filter(x=>x.class==='motorcycle');if(bikes.length){const b=bikes.sort((a,b)=>b.score-a.score)[0];motionHistory.push({t:video.currentTime||Date.now()/1000,x:b.bbox[0]+b.bbox[2]/2,y:b.bbox[1]+b.bbox[3]/2});if(motionHistory.length>80)motionHistory.shift();updateMotion()}$('detCount').textContent=found.length;$('personCount').textContent=people.length;$('bikeCount').textContent=bikes.length;
 clearOverlay();octx.lineWidth=Math.max(2,W/600);octx.font=`${Math.max(14,W/75)}px sans-serif`;
 for(const d of found){const [x,y,w,h]=d.bbox;octx.strokeStyle=d.class==='motorcycle'?'#22c55e':'#38bdf8';octx.fillStyle=octx.strokeStyle;octx.strokeRect(x,y,w,h);const label=`${d.class==='motorcycle'?'二輪車候補':'人物候補'} ${(d.score*100).toFixed(0)}%`;const th=Math.max(20,W/45);octx.fillRect(x,Math.max(0,y-th),Math.min(w+100,W-x),th);octx.fillStyle='#06111f';octx.fillText(label,x+3,Math.max(14,y-5));}
 $('detections').textContent=found.length?found.map(x=>`${x.class==='motorcycle'?'二輪車候補':'人物候補'}｜信頼度 ${(x.score*100).toFixed(1)}%｜位置 ${x.bbox.map(n=>Math.round(n)).join(', ')}`).join('\n'):'対象を検出できませんでした。高精細モードを試すか、映像を一時停止して再解析してください。';return found}
 $('analyzeFrame').onclick=async()=>{try{say('映像全体と分割拡大領域をAI解析中…');const r=await analyze();say(`解析完了：二輪車候補 ${r.filter(x=>x.class==='motorcycle').length}件、人物候補 ${r.filter(x=>x.class==='person').length}件。枠を映像上に表示しました。これは汎用AIの候補検出であり、選手・車番の識別ではありません。`)}catch(e){say(e.message)}};
 $('autoScan').onclick=()=>{if(scanTimer)return;scanTimer=setInterval(async()=>{try{await analyze()}catch(e){say(e.message);stopScan()}},1800);$('autoScan').disabled=true;$('stopScan').disabled=false;say('約1.8秒ごとに画面全体＋分割領域を解析中です。高精細モードは処理が重くなります。')};function stopScan(){if(scanTimer)clearInterval(scanTimer);scanTimer=null;$('autoScan').disabled=!model;$('stopScan').disabled=true}$('stopScan').onclick=stopScan;
 $('compare').onclick=()=>{const a=Number($('predTime').value),b=Number($('officialTime').value);if(!Number.isFinite(a)||!Number.isFinite(b)||a<=0||b<=0){$('comparison').textContent='予想タイムと公式タイムを正しく入力してください。';return}const d=a-b;$('comparison').textContent=`${$('rider').value||'対象選手'}\n予想：${a.toFixed(2)}秒\n公式：${b.toFixed(2)}秒\n誤差：${Math.abs(d).toFixed(2)}秒（予想が${d>0?'遅い':d<0?'速い':'一致'}）\n※予想タイムは現段階では手入力です。`};
+
+function updateMotion(){ $('motionSamples').textContent=motionHistory.length;if(motionHistory.length<2){$('motionSummary').textContent='二輪車候補の位置サンプルを収集中です。';return}const a=motionHistory[0],b=motionHistory[motionHistory.length-1],dist=Math.hypot(b.x-a.x,b.y-a.y);$('motionDisplacement').textContent=Math.round(dist);let turns=[];for(let i=2;i<motionHistory.length;i++){const p=motionHistory[i-2],q=motionHistory[i-1],r=motionHistory[i];const u=[q.x-p.x,q.y-p.y],v=[r.x-q.x,r.y-q.y],ang=Math.acos(Math.max(-1,Math.min(1,(u[0]*v[0]+u[1]*v[1])/(Math.hypot(...u)*Math.hypot(...v)||1))))*180/Math.PI;turns.push(ang)}const mean=turns.length?turns.reduce((x,y)=>x+y,0)/turns.length:0;$('motionTurn').textContent=mean.toFixed(1)+'°';$('motionSummary').textContent=`二輪車候補の中心位置を${motionHistory.length}点記録。最初と最後の画面上の移動量は約${Math.round(dist)}px。方向変化の平均目安は${mean.toFixed(1)}°です。\n注意：カメラのズーム・パン・遠近・検出対象の入れ替わりに影響されるため、実際の走行距離・速度・加速度・コーナリング性能とは一致しません。`}
+$('clearMotion').onclick=()=>{motionHistory=[];$('motionSamples').textContent='0';$('motionDisplacement').textContent='—';$('motionTurn').textContent='—';$('motionSummary').textContent='動きの記録をリセットしました。'};
+$('compare2').onclick=()=>{const p=Number($('predTime2').value),o=Number($('officialTime2').value);if(!(p>0&&o>0)){$('comparison2').textContent='予測タイムと公式タイムを入力してください。';return}const d=p-o;$('comparison2').textContent=`${$('rider2').value||'対象選手'}\n予測 ${p.toFixed(2)}秒／公式 ${o.toFixed(2)}秒\n誤差 ${Math.abs(d).toFixed(2)}秒（予測が${d>0?'遅い':d<0?'速い':'一致'}）\n予測値はAIの自動算出ではなく入力値です。`};
+let currentRating=null;
+$('saveRider').onclick=()=>{const avg=Number($('avgPlace').value),rw=Number($('recentWins').value),rs=Number($('recentStarts').value),hw=Number($('headWins').value),ht=Number($('headTotal').value),trial=Number($('officialTrial').value);const wr=rs>0?rw/rs:0,hr=ht>0?hw/ht:0;let score=50;if(avg>0)score+=(4.5-avg)*7;if(rs>0)score+=(wr-.25)*35;if(ht>0)score+=(hr-.25)*25;if(trial>0)score+=Math.max(-10,Math.min(10,(3.5-trial)*12));score=Math.max(0,Math.min(100,score));currentRating={name:$('histRider').value||'対象選手',score,wr,hr,avg,trial,handicap:Number($('handicap').value)||0};$('riderScore').textContent=score.toFixed(1);$('winRate').textContent=rs>0?(wr*100).toFixed(1)+'%':'—';$('headRate').textContent=ht>0?(hr*100).toFixed(1)+'%':'—';$('historyResult').textContent=`${currentRating.name}：簡易評価 ${score.toFixed(1)}点\n近況1着率 ${rs>0?(wr*100).toFixed(1)+'%':'データなし'}／対戦勝率 ${ht>0?(hr*100).toFixed(1)+'%':'データなし'}\n平均着順 ${avg>0?avg:'未入力'}／ハンデ ${currentRating.handicap}m／試走 ${trial>0?trial.toFixed(2)+'秒':'未入力'}\n※入力データのみを使った独自の参考スコアです。`};
+$('makePicks').onclick=()=>{if(!currentRating){$('pickResult').textContent='先に選手データを入力して評価してください。';return}const budget=Math.max(0,Number($('budget').value)||0),name=currentRating.name;$('pickResult').textContent=`評価上位候補：${name}（${currentRating.score.toFixed(1)}点）\n買い目候補：この選手を軸にした組み合わせを検討してください。\n予算上限：${budget.toLocaleString('ja-JP')}円\n\n現状は1選手分の入力しかないため、具体的な2連単・3連単の組み合わせや配分は算出できません。全出走選手のデータ、枠番、ハンデ、オッズを入力できる複数選手版が必要です。的中・利益の保証はありません。`};
+
+
+// Multi-rider scoring and budgeted candidate construction
+let fieldRiders=[];
+function parseField(){
+ const lines=$('riderCsv').value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);let out=[];
+ for(const line of lines){const a=line.split(/[,，\t]/).map(x=>x.trim());if(a.length<9)continue;const [no,name,hand,trial,avg,wins,starts,headWins,headTotal,odds]=a;const n=Number(no),h=Number(hand),t=Number(trial),av=Number(avg),w=Number(wins),st=Number(starts),hw=Number(headWins),ht=Number(headTotal),od=Number(odds);if(!(n>=1&&n<=8))continue;const wr=st>0?w/st:0,hr=ht>0?hw/ht:0;let score=50;if(av>0)score+=(4.5-av)*7;if(st>0)score+=(wr-.25)*35;if(ht>0)score+=(hr-.25)*25;if(t>0)score+=Math.max(-10,Math.min(10,(3.5-t)*12));score-=Math.max(0,h)*.12;score=Math.max(0,Math.min(100,score));out.push({no:n,name:name||`車番${n}`,hand:h,trial:t,avg:av,wins:w,starts:st,headWins:hw,headTotal:ht,wr,hr,odds:od,score});}
+ return out.sort((a,b)=>b.score-a.score);
+}
+$('sampleField').onclick=()=>{$('riderCsv').value='1,選手A,0,3.38,2.1,5,10,3,8,4.2\n2,選手B,10,3.42,3.0,2,10,2,8,7.5\n3,選手C,20,3.35,2.7,4,10,4,8,5.8\n4,選手D,20,3.46,4.0,1,10,1,8,12.0';};
+$('clearField').onclick=()=>{$('riderCsv').value='';fieldRiders=[];$('fieldRanking').textContent='入力を消去しました。';$('betPlan').textContent='全選手を評価すると買い目候補を作成できます。'};
+$('evaluateField').onclick=()=>{fieldRiders=parseField();if(!fieldRiders.length){$('fieldRanking').textContent='データ形式を確認してください。1行9項目以上、車番は1〜8です。';return}const lines=fieldRiders.map((r,i)=>`${i+1}位｜${r.no}号車 ${r.name}｜評価 ${r.score.toFixed(1)}点｜試走 ${r.trial>0?r.trial.toFixed(2)+'秒':'未入力'}｜平均着順 ${r.avg||'—'}｜近況1着率 ${r.starts?(r.wr*100).toFixed(1)+'%':'—'}｜対戦勝率 ${r.headTotal?(r.hr*100).toFixed(1)+'%':'—'}｜ハンデ ${r.hand}m`).join('\n');$('fieldRanking').textContent=`${$('venue').value||'開催場未入力'} ${$('raceNo').value||''}R｜評価対象 ${fieldRiders.length}車\n${lines}\n\n評価は入力値を重み付けした参考スコアです。実績勝率・AIが学習した着順確率ではありません。`};
+$('buildBet').onclick=()=>{if(fieldRiders.length<2){$('betPlan').textContent='2車以上のデータを入力し、先に「全選手を評価・ランキング」を押してください。';return}const budget=Math.max(0,Number($('raceBudget').value)||0),top=fieldRiders.slice(0,4);if(!budget){$('betPlan').textContent='予算を入力してください。';return}const weights=top.map(x=>Math.max(1,x.score)),sum=weights.reduce((a,b)=>a+b,0);const shares=weights.map(x=>Math.floor(budget*x/sum/100)*100);let rem=budget-shares.reduce((a,b)=>a+b,0);for(let i=0;rem>=100&&i<shares.length;i++,rem-=100)shares[i]+=100;const pair=top.slice(0,3);const plan=[];if(pair.length>=2){plan.push(`2連単候補：${pair[0].no}→${pair[1].no}（評価上位順）`);plan.push(`2連複候補：${pair[0].no}－${pair[1].no}`)}if(pair.length>=3)plan.push(`3連単候補：${pair[0].no}→${pair[1].no}→${pair[2].no}`);plan.push('');plan.push('参考予算配分（評価点比例・100円単位）');top.forEach((r,i)=>plan.push(`${r.no}号車関連：${shares[i].toLocaleString('ja-JP')}円`));plan.push(`合計：${shares.reduce((a,b)=>a+b,0).toLocaleString('ja-JP')}円／上限 ${budget.toLocaleString('ja-JP')}円`);plan.push('');plan.push('注意：オッズ・試走気配・天候・展開を十分反映した期待値計算ではありません。候補は入力スコア順の機械的な参考案で、的中・利益を保証しません。購入前に公式情報とオッズを確認してください。');$('betPlan').textContent=plan.join('\n')};
+$('calcVideoMetrics').onclick=()=>{const m=Number($('calMeters').value),px=Number($('calPixels').value),a=Number($('gateStart').value),b=Number($('gateEnd').value);if(!(m>0&&px>0&&Number.isFinite(a)&&Number.isFinite(b)&&b>a)){$('videoMetrics').textContent='実距離・画面距離・終了時刻が開始時刻より後であることを入力してください。';return}const sec=b-a,scale=m/px,pxs=px/sec,ms=m/sec;$('videoMetrics').textContent=`校正換算：${scale.toFixed(5)} m/px\n区間タイム：${sec.toFixed(2)} 秒\n平均速度（校正区間）：${ms.toFixed(2)} m/s（${(ms*3.6).toFixed(1)} km/h）\n画面上の平均移動：${pxs.toFixed(1)} px/s\n※指定した区間と通過時刻からの計算値です。動画AIが自動でスタート／ゴールを確定した値ではありません。`};
+
 window.addEventListener('beforeunload',()=>{stopScan();if(stream)stream.getTracks().forEach(t=>t.stop())});
 </script>
 </body></html>
